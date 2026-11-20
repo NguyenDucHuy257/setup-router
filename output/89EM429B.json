@@ -1,0 +1,67 @@
+{
+  "schema": "autodoor-router/1",
+  "createdAt": "2026-11-20T14:16:45+00:00",
+  "device": {
+    "id": "89EM429B",
+    "name": "TRỌ AN CƯ HOME TEST",
+    "siteId": 2,
+    "model": "vAP-32x6 v2",
+    "arch": "aarch64",
+    "openwrt": "OpenWrt 25.12.6 r33311-981c978eff",
+    "packageManager": "apk"
+  },
+  "network": {
+    "lanIp": "192.168.3.1",
+    "lanCidr": "192.168.3.0/24",
+    "via6Route": "fd7a:115c:a1e0:b1a:0:2:c0a8:300/120",
+    "publicIp": "14.186.70.84",
+    "gatewayMac": "00:1d:aa:78:49:d8"
+  },
+  "tailscale": {
+    "version": "1.104.1",
+    "state": "Running",
+    "hostname": "ad-u6hk4q4p",
+    "dnsName": "ad-u6hk4q4p.tail995fa1.ts.net",
+    "ips": [
+      "100.78.143.25",
+      "fd7a:115c:a1e0::8c2b:8f1a"
+    ],
+    "tags": [
+      "tag:site-router"
+    ],
+    "keyExpiry": null,
+    "advertisedRoutes": [
+      "fd7a:115c:a1e0:b1a:0:2:c0a8:300/120"
+    ],
+    "approvedRoutes": [
+      "fd7a:115c:a1e0:b1a:0:2:c0a8:100/120"
+    ],
+    "health": [
+      "Some peers are advertising routes but --accept-routes is false"
+    ]
+  },
+  "security": {
+    "tunnel": "WireGuard (Noise IK, ChaCha20-Poly1305) do Tailscale quản lý",
+    "tailscaleKeyExpires": false,
+    "sshPort": "22",
+    "sshPasswordAuth": true,
+    "sshHostKey": "Fingerprint: SHA256:nqjI7tSYedhoUSIO5G0war1BbBb33mZar19QkPU51qY",
+    "luciHttps": true,
+    "luciRedirectToHttps": false,
+    "firewallZoneTailscale": true,
+    "heartbeat": "chưa bật"
+  },
+  "telegram": {
+    "configured": true
+  },
+  "agent": {
+    "token": "X5h-xiJM5Ng3Xnhwu791JkwM6BmgRxqQuucbTqh4yz8",
+    "heartbeatUrl": "",
+    "intervalSeconds": 60,
+    "commands": [
+      "restart_tailscale",
+      "ifup_wan",
+      "reboot"
+    ]
+  }
+}
