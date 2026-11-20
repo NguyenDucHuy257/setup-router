@@ -76,6 +76,7 @@ class Params:
     telegram_token: str = ""   # optional: the router itself can message a Telegram group
     telegram_chat_id: str = ""
     skip_space_check: bool = False
+    relogin: bool = True       # log the router out of its current Tailscale account first (switch account/tailnet)
     token: str = field(default_factory=gen_token)
 
     @property
@@ -146,6 +147,15 @@ def probe(router: Router, log: Log) -> dict:
     wan_dev = router.out("ip -4 route show default | awk '{for(i=1;i<=NF;i++) if($i==\"dev\"){print $(i+1); exit}}'")
     wan_addr = router.out(f"ip -4 -o addr show dev {shlex.quote(wan_dev)} | awk '{{print $4}}' | head -n 1") if wan_dev else ""
     wan_cidr = lan_cidr(wan_addr) if wan_addr else ""
+    ts_state = ts_tailnet = ""
+    if router.out("command -v tailscale"):
+        status = router.out("tailscale status --json 2>/dev/null")
+        try:
+            parsed = json.loads(status)
+        except ValueError:
+            parsed = {}
+        ts_state = parsed.get("BackendState") or ""
+        ts_tailnet = (parsed.get("CurrentTailnet") or {}).get("MagicDNSSuffix") or ""
     missing = []
     if not router.out("command -v tailscale"):
         missing.append("tailscale")
@@ -162,13 +172,15 @@ def probe(router: Router, log: Log) -> dict:
                              "{print $(i+1); exit}}'")
     info = {
         "openwrt": release, "board": board, "arch": arch, "pkgManager": pkg, "freeKb": free_kb,
-        "lanIp": ip[0].split("/")[0], "gatewayMac": gateway_mac.lower(), "wanCidr": wan_cidr, "lanCidr": lan_cidr(ip[0], mask),
+        "tsState": ts_state, "tsTailnet": ts_tailnet, "lanIp": ip[0].split("/")[0], "gatewayMac": gateway_mac.lower(), "wanCidr": wan_cidr, "lanCidr": lan_cidr(ip[0], mask),
         "tailscaleInstalled": "tailscale" not in missing, "missing": missing, "internet": internet, "dns": dns,
         "clockSkewSeconds": router_epoch - int(time.time()),
     }
     log(f"  {release} | {board} | {arch} | gói: {pkg or 'KHÔNG CÓ'} | trống {free_kb // 1024} MB")
     log(f"  LAN {info['lanIp']} -> {info['lanCidr']} | mạng phía WAN: {info['wanCidr'] or '?'} | Internet: {'có' if internet else 'KHÔNG'} | "
         f"DNS: {'có' if dns else 'KHÔNG'} | Thiếu gói: {', '.join(missing) or 'không'}")
+    if ts_state and ts_state != "NeedsLogin":
+        log(f"  Tailscale đang đăng nhập sẵn: tailnet {ts_tailnet or '?'} (trạng thái {ts_state})")
     return info
 
 
@@ -260,6 +272,10 @@ def apply(router: Router, params: Params, info: dict, log: Log, login: bool = Tr
     if not login:
         _step(log, "(chế độ thử) bỏ qua đăng nhập Tailscale")
         return install_files(router, params, log, login=False)
+    if params.relogin and info.get("tsState") not in ("", None, "NeedsLogin", "NoState"):
+        _step(log, f"Đăng xuất tài khoản Tailscale cũ (tailnet {info.get('tsTailnet') or '?'})")
+        router.run("tailscale logout", 30)  # an old login would otherwise ignore the new auth key
+        time.sleep(2)
     _step(log, "Đăng nhập tailnet bằng auth key và advertise route 4via6")
     hostname = tailscale_hostname(params.device_id)
     flags = (f"--hostname={shlex.quote(hostname)} --advertise-routes={shlex.quote(params.route)} "
@@ -350,6 +366,7 @@ def collect(router: Router, params: Params, log: Log) -> dict:
             "version": router.out("tailscale version | head -n 1"),
             "state": data.get("BackendState"),
             "hostname": me.get("HostName"),
+            "tailnet": (data.get("CurrentTailnet") or {}).get("MagicDNSSuffix"),
             "dnsName": (me.get("DNSName") or "").rstrip("."),
             "ips": me.get("TailscaleIPs") or [],
             "tags": me.get("Tags") or [],

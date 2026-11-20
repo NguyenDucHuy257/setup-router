@@ -75,6 +75,11 @@ class App(ttk.Frame):
         ttk.Label(b, text="Route 4via6").grid(row=7, column=0, sticky="w", pady=2)
         self.route_label = ttk.Label(b, text="-", font=("Consolas", 10), foreground="#0a5")
         self.route_label.grid(row=7, column=1, columnspan=2, sticky="w")
+        self.relogin = tk.BooleanVar(value=True)
+        r = ttk.Checkbutton(b, text="Đăng xuất Tailscale cũ trước (cần khi đổi sang tài khoản/tailnet khác)",
+                            variable=self.relogin)
+        r.grid(row=9, column=1, columnspan=2, sticky="w")
+        self.review_widgets.append(r)
         self.skip_space = tk.BooleanVar(value=False)
         c = ttk.Checkbutton(b, text="Bỏ qua kiểm tra dung lượng flash", variable=self.skip_space)
         c.grid(row=8, column=1, sticky="w")
@@ -214,7 +219,7 @@ class App(ttk.Frame):
             device_id=self.val("device_id").upper(), cidr=self.val("cidr"), tag=self.val("tag"),
             heartbeat_url=self.val("heartbeat"), ssh_public_key=self.val("ssh_key"),
             telegram_token=str(self.vars["tg_token"].get()).strip(), telegram_chat_id=self.val("tg_chat"),
-            skip_space_check=self.skip_space.get())
+            skip_space_check=self.skip_space.get(), relogin=self.relogin.get())
 
     def _do_apply(self) -> None:
         try:
@@ -263,6 +268,11 @@ class App(ttk.Frame):
             OUTPUT.mkdir(exist_ok=True)
             path = OUTPUT / f"{params.device_id}.json"
             path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            new_tailnet = data["tailscale"].get("tailnet") or "?"
+            self.log(f"  Tailnet đang dùng: {new_tailnet}")
+            old_tailnet = self.info.get("tsTailnet")
+            if old_tailnet and old_tailnet == new_tailnet and params.relogin:
+                self.log(f"⚠ Vẫn là tailnet cũ ({old_tailnet}). Auth key có thật sự thuộc tài khoản mới không?")
             self.log(f"✔ XONG. Đã lưu: {path}")
             self.log(f"  IP public: {data['network']['publicIp'] or '(không đọc được)'} | "
                      f"Tailscale IP: {', '.join(data['tailscale']['ips'])}")
